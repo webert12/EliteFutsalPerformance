@@ -1,19 +1,25 @@
 from fastapi import FastAPI
 
-from app.config import settings
+from app.database import criar_tabelas
 
 
 app = FastAPI(
-    title=settings.APP_NAME,
+    title="Elite Futsal Performance",
     version="1.0.0"
 )
 
 
+@app.on_event("startup")
+def iniciar():
+
+    criar_tabelas()
+
+
 @app.get("/")
-def home():
+def inicio():
 
     return {
         "sistema": "Elite Futsal Performance",
         "status": "online",
-        "versao": "1.0.0"
+        "modulo": "Banco de dados iniciado"
     }
