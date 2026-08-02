@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-
+from app.routes import auth
 from app.database import criar_tabelas
 
 
