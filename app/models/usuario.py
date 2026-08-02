@@ -1,54 +1,20 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from datetime import datetime
-
-from app.database import Base
+from pydantic import BaseModel, EmailStr
 
 
-class Usuario(Base):
+class UsuarioCriacao(BaseModel):
 
-    __tablename__ = "usuarios"
+    nome: str
 
+    email: EmailStr
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
+    senha: str
 
-
-    nome = Column(
-        String(100),
-        nullable=False
-    )
+    tipo_usuario: str = "atleta"
 
 
-    email = Column(
-        String(150),
-        unique=True,
-        nullable=False,
-        index=True
-    )
 
+class UsuarioLogin(BaseModel):
 
-    senha_hash = Column(
-        String(255),
-        nullable=False
-    )
+    email: EmailStr
 
-
-    tipo_usuario = Column(
-        String(30),
-        default="atleta"
-    )
-
-
-    ativo = Column(
-        Boolean,
-        default=True
-    )
-
-
-    data_criacao = Column(
-        DateTime,
-        default=datetime.utcnow
-  )
+    senha: str
