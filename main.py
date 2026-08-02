@@ -1,6 +1,8 @@
-from fastapi import FastAPI
 from app.routes import auth
+from fastapi import FastAPI
+
 from app.database import criar_tabelas
+from app.routes import auth
 
 
 app = FastAPI(
@@ -15,11 +17,17 @@ def iniciar():
     criar_tabelas()
 
 
+# Rotas do sistema
+app.include_router(
+    auth.router
+)
+
+
 @app.get("/")
 def inicio():
 
     return {
         "sistema": "Elite Futsal Performance",
         "status": "online",
-        "modulo": "Banco de dados iniciado"
+        "modulo": "Autenticação iniciado"
     }
