@@ -29,7 +29,7 @@ def admin(u):
     if u.tipo_usuario != 'administrador':
         raise HTTPException(403,'Somente administradores')
 def acesso(equipe, u):
-    if u.tipo_usuario != 'administrador' and not (u.tipo_usuario == 'treinador' and equipe.treinador_id == u.id):
+    if not (u.tipo_usuario == 'treinador' and equipe.treinador_id == u.id):
         raise HTTPException(403,'Equipe não autorizada')
 def obter_equipe(db,id,u):
     equipe=db.get(Equipe,id)
@@ -42,7 +42,8 @@ def resumo_equipe(e):
 
 @router.post('/equipes',status_code=201)
 def criar_equipe(d:EquipeNova,u:Usuario=Depends(usuario_atual),db:Session=Depends(get_db)):
-    admin(u)
+    if u.tipo_usuario != 'treinador': raise HTTPException(403,'Somente treinadores criam equipes')
+    if d.treinador_id != u.id: raise HTTPException(403,'Equipe deve pertencer ao treinador autenticado')
     t=db.get(Usuario,d.treinador_id)
     if not t or not t.ativo or t.tipo_usuario!='treinador': raise HTTPException(422,'Treinador inválido')
     e=Equipe(**d.model_dump());db.add(e);db.commit();db.refresh(e)
@@ -50,14 +51,15 @@ def criar_equipe(d:EquipeNova,u:Usuario=Depends(usuario_atual),db:Session=Depend
 
 @router.get('/equipes')
 def listar_equipes(u:Usuario=Depends(usuario_atual),db:Session=Depends(get_db)):
-    if u.tipo_usuario not in ('administrador','treinador'): raise HTTPException(403,'Acesso restrito')
+    if u.tipo_usuario != 'treinador': raise HTTPException(403,'Acesso restrito aos treinadores')
     q=db.query(Equipe)
     if u.tipo_usuario=='treinador':q=q.filter(Equipe.treinador_id==u.id)
     return [resumo_equipe(e) for e in q.order_by(Equipe.nome).all()]
 
 @router.post('/equipes/{equipe_id}/atletas',status_code=201)
 def vincular(equipe_id:int,d:VinculoNovo,u:Usuario=Depends(usuario_atual),db:Session=Depends(get_db)):
-    admin(u);obter_equipe(db,equipe_id,u)
+    if u.tipo_usuario != 'treinador': raise HTTPException(403,'Somente treinadores vinculam atletas')
+    obter_equipe(db,equipe_id,u)
     if not db.get(Atleta,d.atleta_id):raise HTTPException(404,'Atleta não encontrado')
     v=VinculoEquipe(equipe_id=equipe_id,atleta_id=d.atleta_id);db.add(v)
     try:db.commit()
