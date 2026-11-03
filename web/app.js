@@ -54,12 +54,14 @@ $("form").onsubmit=async event=>{
       role=user.tipo_usuario;
       $("who").textContent="Olá, "+user.nome+"! Perfil: "+role+".";
       const staff=["administrador","treinador"].includes(role);
+      $("adminTools").classList.toggle("hidden",role!=="administrador");
       $("staffTools").classList.toggle("hidden",!staff);
       $("roleHelp").textContent=staff?"Você pode consultar os atletas cadastrados no sistema.":"Sua conta está ativa. O acompanhamento individual será liberado quando a equipe vincular seu cadastro de atleta.";
       $("auth").classList.add("hidden");$("profile").classList.remove("hidden");
       $("password").value="";
       $("profile").scrollIntoView({behavior:"smooth"});
       if(staff)await loadAthletes();
+      if(role==="administrador")await loadAdmin();
     }
   } catch(err){message(err.message||"Falha na conexão",true);}
   finally{$("submit").disabled=false;}
@@ -80,9 +82,38 @@ async function loadAthletes(){
 }
 $("loadAthletes").onclick=loadAthletes;
 function logout(showLogin=true){
-  token=null;role=null;
+  token=null;role=null;$("adminTools").classList.add("hidden");
   $("profile").classList.add("hidden");$("athletesList").replaceChildren();
   $("form").reset();
   if(showLogin)showAuth("login");
 }
 $("logout").onclick=()=>logout();
+
+// V3: administração. Autorização real sempre validada pelo backend.
+async function loadAdmin(){
+  if(role!=="administrador")return;
+  try{
+    const [trainers,users]=await Promise.all([request('/api/admin/treinadores'),request('/api/admin/usuarios-atletas')]);
+    $('trainerList').replaceChildren();
+    for(const t of trainers){const item=document.createElement('div');item.className='athlete-item';item.textContent=t.nome+' — '+t.email;$('trainerList').append(item);}
+    if(!trainers.length)$('trainerList').textContent='Nenhum treinador cadastrado.';
+    const select=$('athleteUser');select.replaceChildren(new Option('Selecione uma conta',''));
+    for(const u of users)select.add(new Option(u.nome+' ('+u.email+')',String(u.id)));
+  }catch(e){$('trainerMessage').textContent='Não foi possível carregar os dados: '+e.message;}
+}
+$('refreshTrainers').onclick=loadAdmin;
+$('trainerForm').onsubmit=async e=>{
+  e.preventDefault();const button=$('trainerSubmit');button.disabled=true;
+  try{
+    await request('/api/admin/treinadores',{method:'POST',body:JSON.stringify({nome:$('trainerName').value.trim(),email:$('trainerEmail').value.trim(),senha:$('trainerPassword').value})});
+    $('trainerForm').reset();$('trainerMessage').textContent='Treinador criado. Oriente-o a alterar a senha inicial quando houver essa funcionalidade.';await loadAdmin();
+  }catch(err){$('trainerMessage').textContent=err.message;}finally{button.disabled=false;$('trainerPassword').value='';}
+};
+$('athleteForm').onsubmit=async e=>{
+  e.preventDefault();const button=$('athleteSubmit');button.disabled=true;
+  try{
+    const payload={usuario_id:Number($('athleteUser').value),nascimento:$('athleteBirth').value,posicao:$('athletePosition').value,altura_cm:Number($('athleteHeight').value),peso_kg:Number($('athleteWeight').value),pe_dominante:$('athleteFoot').value||null};
+    await request('/api/atletas',{method:'POST',body:JSON.stringify(payload)});
+    $('athleteForm').reset();$('athleteMessage').textContent='Ficha esportiva cadastrada.';await loadAdmin();await loadAthletes();
+  }catch(err){$('athleteMessage').textContent=err.message;}finally{button.disabled=false;}
+};

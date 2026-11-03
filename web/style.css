@@ -2,3 +2,11 @@
 
 /* Painel V2 */
 #profile{margin:18px 20px 35px}#roleHelp{color:#b4c9bc;line-height:1.5}.athlete-list{display:grid;gap:10px;margin:14px 0 20px}.athlete-item{padding:14px;border:1px solid #315b42;background:#10291c;border-radius:12px}.athlete-item strong{display:block}.athlete-item small{color:#a4cbb3}.hidden{display:none!important}button:disabled{opacity:.6;cursor:wait}#message{min-height:1.3em}#message.error{color:#ffb3b3}
+/* V3: formulários administrativos */
+.management{margin-top:2rem;padding-top:1.25rem;border-top:1px solid #335345}
+.management h3,.management h4{margin:1.5rem 0 .8rem}
+.manage-form{display:grid;gap:.9rem;margin:1.3rem 0 2rem}
+.manage-form label{display:grid;gap:.4rem;color:#d7e9de}
+.manage-form input,.manage-form select{box-sizing:border-box;width:100%;padding:.85rem;border-radius:.7rem;border:1px solid #476253;background:#0a1911;color:#f1fff5;font:inherit}
+.manage-form button{max-width:100%}
+.hint{font-size:.9rem;line-height:1.5;color:#b7cabe}
