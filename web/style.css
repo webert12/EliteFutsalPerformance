@@ -10,3 +10,6 @@
 .manage-form input,.manage-form select{box-sizing:border-box;width:100%;padding:.85rem;border-radius:.7rem;border:1px solid #476253;background:#0a1911;color:#f1fff5;font:inherit}
 .manage-form button{max-width:100%}
 .hint{font-size:.9rem;line-height:1.5;color:#b7cabe}
+
+/* V4 */
+#v4Tools select{display:block;width:100%;padding:12px;margin-top:8px;background:#081810;color:#f4fff8;border:1px solid #365743;border-radius:10px}#v4Tools .athlete-item select{margin-top:10px}#v4Message{color:#a4eab9;line-height:1.5}

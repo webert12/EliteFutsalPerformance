@@ -5,17 +5,23 @@ from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.models.usuario import Usuario
 from app.models.atleta import Atleta, RegistroDiario
+from app.models.treino import Equipe, VinculoEquipe
 from app.schemas.atleta import AtletaCriacao, AtletaPublico, RegistroCriacao, RegistroPublico
 from app.security.token import usuario_atual, exigir_equipe
 
 router = APIRouter(prefix='/api/atletas', tags=['Atletas'])
 
 def autorizar(atleta: Atleta, usuario: Usuario):
-    if usuario.tipo_usuario not in ('administrador','treinador') and atleta.usuario_id != usuario.id:
+    if usuario.tipo_usuario == 'treinador':
+        # Check trainer-team membership in each endpoint using the request DB.
+        raise HTTPException(status_code=403, detail='Use as rotas de equipes para acompanhar seus atletas')
+    if usuario.tipo_usuario != 'administrador' and atleta.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail='Acesso não autorizado')
 
 @router.post('', response_model=AtletaPublico, status_code=201)
 def cadastrar(dados: AtletaCriacao, equipe: Usuario = Depends(exigir_equipe), db: Session = Depends(get_db)):
+    if equipe.tipo_usuario != "administrador":
+        raise HTTPException(status_code=403, detail="Somente administradores podem criar fichas")
     usuario = db.get(Usuario, dados.usuario_id)
     if not usuario or usuario.tipo_usuario != 'atleta':
         raise HTTPException(status_code=400, detail='Usuário atleta inválido')
@@ -35,6 +41,10 @@ def cadastrar(dados: AtletaCriacao, equipe: Usuario = Depends(exigir_equipe), db
 
 @router.get('', response_model=list[AtletaPublico])
 def listar(equipe: Usuario = Depends(exigir_equipe), db: Session = Depends(get_db)):
+    if equipe.tipo_usuario == 'treinador':
+        return (db.query(Atleta).join(VinculoEquipe, VinculoEquipe.atleta_id == Atleta.id)
+                .join(Equipe, Equipe.id == VinculoEquipe.equipe_id)
+                .filter(Equipe.treinador_id == equipe.id).distinct().order_by(Atleta.id).all())
     return db.query(Atleta).order_by(Atleta.id).all()
 
 @router.get('/{atleta_id}', response_model=AtletaPublico)
