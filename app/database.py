@@ -1,37 +1,20 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from app.config import settings
 
+class Base(DeclarativeBase):
+    pass
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True
-)
+if not settings.DATABASE_URL:
+    raise RuntimeError('DATABASE_URL ausente: configure no Render > Environment')
 
+url = settings.DATABASE_URL
+if url.startswith('postgres://'):
+    url = 'postgresql://' + url[len('postgres://'):]
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-
-Base = declarative_base()
-
-
-def criar_tabelas():
-    Base.metadata.create_all(
-        bind=engine
-    )
-
+engine = create_engine(url, pool_pre_ping=True, pool_recycle=1800)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 def get_db():
-
-    db = SessionLocal()
-
-    try:
+    with SessionLocal() as db:
         yield db
-
-    finally:
-        db.close()
