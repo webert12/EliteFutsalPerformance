@@ -17,7 +17,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title=settings.APP_NAME, version='0.2.0', lifespan=lifespan)
-from app.routes import administracao, treinos, rotina, acesso, habitos
+from app.routes import administracao, treinos, rotina, acesso, habitos, performance_v9
+app.include_router(performance_v9.router)
 app.include_router(administracao.router)
 app.include_router(treinos.router)
 app.include_router(rotina.router)

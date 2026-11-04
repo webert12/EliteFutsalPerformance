@@ -277,8 +277,8 @@ $('v7CoachRefresh').onclick=async()=>{
 // V8: painel visual, sem conceder novas permissões. O servidor continua sendo a autoridade.
 const v8Tabs={
   administrador:[['inicio','🏠 Início'],['admin','👥 Treinadores']],
-  treinador:[['inicio','🏠 Início'],['equipes','👥 Equipes e treinos'],['atividades','📋 Atividades']],
-  atleta:[['inicio','🏠 Meu Dia'],['rotina','🌿 Rotina e hábitos'],['perfil','🛡️ Meu cadastro']]
+  treinador:[['inicio','🏠 Início'],['equipes','👥 Equipes e treinos'],['atividades','📋 Atividades'],['performance','📈 Performance']],
+  atleta:[['inicio','🏠 Meu Dia'],['rotina','🌿 Rotina e hábitos'],['performance','💚 Performance'],['perfil','🛡️ Meu cadastro']]
 };
 function v8Setup(tipo){
   const nav=$('v8Navigation');nav.replaceChildren();
@@ -303,7 +303,7 @@ function v8Show(tipo,tab){
   if(role!==tipo)return;
   const overview=$('v8Overview');overview.replaceChildren();
   const nav=$('v8Navigation');for(const b of nav.querySelectorAll('button'))b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');
-  const sections=['adminTools','v4Tools','trainerRoutine','athleteTools'];
+  const sections=['adminTools','v4Tools','trainerRoutine','athleteTools','v9Athlete','v9Coach'];
   sections.forEach(id=>$(id).classList.add('hidden'));
   const add=(...cards)=>cards.forEach(c=>overview.append(c));
   if(tipo==='administrador'){
@@ -312,13 +312,15 @@ function v8Show(tipo,tab){
   }else if(tipo==='treinador'){
     if(tab==='equipes')$('v4Tools').classList.remove('hidden');
     else if(tab==='atividades')$('trainerRoutine').classList.remove('hidden');
-    else add(v8Card('👥','Minhas equipes','Convites, presenças, calendário e treinos.','equipes'),v8Card('🏃','Exercícios e tarefas','Planeje atividades técnicas e acompanhe os atletas.','atividades'),v8Card('📈','Acompanhamento','Consulte os registros dos atletas vinculados na área de atividades.','atividades'));
+    else if(tab==='performance'){$('v9Coach').classList.remove('hidden');v9CoachLoad();}
+    else add(v8Card('👥','Minhas equipes','Convites, presenças, calendário e treinos.','equipes'),v8Card('🏃','Exercícios e tarefas','Planeje atividades técnicas e acompanhe os atletas.','atividades'),v8Card('📈','Performance','Check-ins, biblioteca técnica, avaliações e relatório semanal.','performance'));
   }else if(tipo==='atleta'){
     if(tab==='rotina'){$('athleteTools').classList.remove('hidden');$('v6Access').classList.add('hidden');}
+    else if(tab==='performance'){$('v9Athlete').classList.remove('hidden');v9AthleteLoad();}
     else if(tab==='perfil'){$('athleteTools').classList.remove('hidden');$('v6Access').classList.remove('hidden');$('athleteDaily').classList.add('hidden');}
     else {
       $('v6Access').classList.remove('hidden');
-      add(v8Card('🏃','Exercícios do dia','Veja e conclua as tarefas enviadas pelo treinador.','rotina'),v8Card('🥗','Alimentação','Registre refeições; orientações educativas, sem dieta prescrita.','rotina'),v8Card('💧','Hidratação','Registre seus hábitos e consumo de água.','rotina'),v8Card('🌙','Sono e recuperação','Registre o sono e o descanso diário.','rotina'),v8Card('💚','Bem-estar','Informe como se sente e comunique dor ao responsável.','rotina'),v8Card('🛡️','Minha equipe','Autorização do responsável e solicitação de entrada.','perfil'));
+      add(v8Card('🏃','Exercícios do dia','Veja e conclua as tarefas enviadas pelo treinador.','rotina'),v8Card('🥗','Alimentação','Registre refeições; orientações educativas, sem dieta prescrita.','rotina'),v8Card('💧','Hidratação','Registre seus hábitos e consumo de água.','rotina'),v8Card('🌙','Sono e recuperação','Registre o sono e o descanso diário.','rotina'),v8Card('💚','Bem-estar e evolução','Check-in e avaliações individuais.','performance'),v8Card('🛡️','Minha equipe','Autorização do responsável e solicitação de entrada.','perfil'));
       v8LoadProgress();
     }
     if(tab!=='perfil' && $('v6AccessStatus').textContent) { /* a rotina mantém as regras de autorização do V6 */ }
@@ -344,3 +346,33 @@ async function v8LoadProgress(){
     progress.append(heading,info,bar);$('v8Overview').prepend(progress);
   }catch(_){/* Sem ficha ou autorização: não revelar detalhes privados. */}
 }
+
+// V9 — funcionalidades independentes; as autorizações são verificadas pelo servidor.
+const v9Today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+$('v9CheckinDate').value=v9Today();$('v9AssessmentDate').value=v9Today();
+function v9Line(target,value){const d=document.createElement('div');d.className='athlete-item';d.textContent=value;$(target).append(d);}
+async function v9AthleteLoad(){
+ if(role!=='atleta')return;
+ $('v9Tips').replaceChildren();$('v9MyAssessments').replaceChildren();
+ try{const [tips,assessments,checkins]=await Promise.all([request('/api/v9/orientacoes'),request('/api/v9/minhas-avaliacoes'),request('/api/v9/meus-checkins')]);
+ for(const [key,values] of Object.entries(tips)){v9Line('v9Tips',key.toUpperCase());values.forEach(t=>v9Line('v9Tips','• '+t));}
+ for(const a of assessments)v9Line('v9MyAssessments',`${a.dia} · ${a.fundamento}: ${a.nota}/5${a.observacao?' · '+a.observacao:''}`);
+ if(!assessments.length)v9Line('v9MyAssessments','Nenhuma avaliação registrada pelo treinador.');
+ if(checkins.length)$('v9CheckinStatus').textContent='Último check-in: '+checkins[0].dia;
+ }catch(e){$('v9CheckinStatus').textContent=e.message;}
+}
+$('v9CheckinForm').onsubmit=async e=>{e.preventDefault();try{await request('/api/v9/meu-checkin',{method:'PUT',body:JSON.stringify({dia:$('v9CheckinDate').value,sono:$('v9Sleep').value,cansaco:Number($('v9Fatigue').value),dor:$('v9Pain').checked,observacao:$('v9CheckinNote').value.trim()||null})});$('v9CheckinStatus').textContent='Check-in salvo. Se estiver com dor, avise seu responsável e treinador.';}catch(err){$('v9CheckinStatus').textContent=err.message;}};
+async function v9CoachLoad(){
+ if(role!=='treinador')return; $('v9Library').replaceChildren();
+ try{const exercises=await request('/api/v9/biblioteca');for(const x of exercises)v9Line('v9Library',`${x.nome} — ${x.objetivo}. ${x.instrucoes}`);await v9ReportLoad();}catch(e){$('v9CoachStatus').textContent=e.message;}
+}
+async function v9ReportLoad(){
+ const id=Number($('taskAthlete').value);$('v9Report').replaceChildren();
+ if(!id){$('v9CoachStatus').textContent='Selecione um atleta na aba Atividades, depois volte aqui.';return;}
+ try{const r=await request('/api/v9/atletas/'+id+'/relatorio');v9Line('v9Report',`Últimos 7 dias: ${r.tarefas_concluidas}/${r.tarefas_total} tarefas concluídas; ${r.dias_habitos} dias com hábitos registrados.`);
+ for(const c of r.checkins)v9Line('v9Report',`${c.dia} · Sono: ${c.sono} · Cansaço: ${c.cansaco}/5 · Dor: ${c.dor?'SIM — conversar com o atleta':'não informada'}`);
+ for(const a of r.avaliacoes)v9Line('v9Report',`${a.dia} · ${a.fundamento}: ${a.nota}/5`);
+ $('v9CoachStatus').textContent='Relatório atualizado.';}catch(e){$('v9CoachStatus').textContent=e.message;}
+}
+$('v9RefreshReport').onclick=v9ReportLoad;
+$('v9AssessmentForm').onsubmit=async e=>{e.preventDefault();const atleta_id=Number($('taskAthlete').value);if(!atleta_id){$('v9CoachStatus').textContent='Selecione um atleta na aba Atividades.';return;}try{await request('/api/v9/avaliacoes',{method:'POST',body:JSON.stringify({atleta_id,dia:$('v9AssessmentDate').value,fundamento:$('v9Skill').value,nota:Number($('v9Score').value),observacao:$('v9AssessmentNote').value.trim()||null})});$('v9CoachStatus').textContent='Avaliação registrada.';await v9ReportLoad();}catch(e){$('v9CoachStatus').textContent=e.message;}};

@@ -7,3 +7,5 @@ from .rotina import Tarefa
 from .acesso import Consentimento, ConviteEquipe, SolicitacaoEquipe
 
 from .habitos import HabitosDia
+
+from .performance_v9 import CheckinV9, AvaliacaoV9
