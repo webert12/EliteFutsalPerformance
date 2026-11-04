@@ -13,3 +13,13 @@
 
 /* V4 */
 #v4Tools select{display:block;width:100%;padding:12px;margin-top:8px;background:#081810;color:#f4fff8;border:1px solid #365743;border-radius:10px}#v4Tools .athlete-item select{margin-top:10px}#v4Message{color:#a4eab9;line-height:1.5}
+
+/* V6 organizada: painéis de uso exclusivo por perfil */
+#profile{max-width:900px;margin:24px auto 40px;padding:clamp(18px,4vw,32px)}
+.dashboard-heading{border-bottom:1px solid #335345;padding-bottom:16px;margin-bottom:20px}
+.dashboard-heading h2{font-size:clamp(26px,5vw,38px);margin:8px 0}
+#profile .management{max-width:100%;margin-top:20px}
+#profile .manage-form{max-width:600px}
+#profile button{margin-top:6px}
+#profile #roleHelp{font-size:15px}
+@media(max-width:600px){#profile{margin:12px;padding:16px}#profile button{width:100%}}

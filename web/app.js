@@ -55,13 +55,20 @@ $("form").onsubmit=async event=>{
       role=user.tipo_usuario;currentUserId=user.id;
       $("who").textContent="Olá, "+user.nome+"! Perfil: "+role+".";
       const staff=role==="treinador";
+      const titles={administrador:"Administração",treinador:"Central do treinador",atleta:"Meu Dia"};
+      const descriptions={administrador:"Gerencie as contas dos treinadores.",treinador:"Organize suas equipes, treinos e atividades individuais.",atleta:"Confira suas atividades e registre seu dia."};
+      $("panelTitle").textContent=titles[role]||"Meu painel";
+      $("panelLabel").textContent=(role||"USUÁRIO").toUpperCase();
+      $("publicHero").classList.add("hidden");$("publicCards").classList.add("hidden");
+      $("adminTools").classList.add("hidden");$("staffTools").classList.add("hidden");
+      $("v4Tools").classList.add("hidden");$("trainerRoutine").classList.add("hidden");$("athleteTools").classList.add("hidden");
       $("adminTools").classList.toggle("hidden",role!=="administrador");
-      $("staffTools").classList.toggle("hidden",!staff);
-      $("roleHelp").textContent=staff?"Você pode consultar os atletas cadastrados no sistema.":"Sua conta está ativa. O acompanhamento individual será liberado quando a equipe vincular seu cadastro de atleta.";
+      // A listagem geral não aparece no painel do treinador; use somente as equipes vinculadas.
+      $("roleHelp").textContent=descriptions[role]||"Sua conta está ativa.";
       $("auth").classList.add("hidden");$("profile").classList.remove("hidden");
       $("password").value="";
       $("profile").scrollIntoView({behavior:"smooth"});
-      if(staff)await loadAthletes();
+
       if(staff){await initV4();$("trainerRoutine").classList.remove("hidden");}
       if(role==="atleta")await initAthleteV5(user.id);
       if(role==="administrador")await loadAdmin();
@@ -86,7 +93,7 @@ async function loadAthletes(){
 $("loadAthletes").onclick=loadAthletes;
 function logout(showLogin=true){
   $("v4Tools").classList.add("hidden");$("trainerRoutine").classList.add("hidden");$("athleteTools").classList.add("hidden");token=null;role=null;currentUserId=null;$("adminTools").classList.add("hidden");
-  $("profile").classList.add("hidden");$("athletesList").replaceChildren();
+  $("profile").classList.add("hidden");$("publicHero").classList.remove("hidden");$("publicCards").classList.remove("hidden");$("staffTools").classList.add("hidden");$("athletesList").replaceChildren();
   $("form").reset();
   if(showLogin)showAuth("login");
 }
