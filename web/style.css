@@ -23,3 +23,9 @@
 #profile button{margin-top:6px}
 #profile #roleHelp{font-size:15px}
 @media(max-width:600px){#profile{margin:12px;padding:16px}#profile button{width:100%}}
+
+/* V7 — leitura clara e formulários separados */
+#v7HabitsForm label{display:flex;align-items:center;gap:12px;margin:2px 0}
+#v7HabitsForm input[type=checkbox]{width:22px;height:22px;flex:0 0 22px;margin:0}
+#v7HabitsForm label:has(#v7Obs){display:grid}
+#v7Coach select{display:block;width:100%;padding:12px;margin-top:8px;background:#081810;color:#f4fff8;border:1px solid #365743;border-radius:10px}

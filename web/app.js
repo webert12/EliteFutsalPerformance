@@ -69,7 +69,7 @@ $("form").onsubmit=async event=>{
       $("password").value="";
       $("profile").scrollIntoView({behavior:"smooth"});
 
-      if(staff){await initV4();$("trainerRoutine").classList.remove("hidden");}
+      if(staff){await initV4();$("trainerRoutine").classList.remove("hidden");await v7InitCoach();}
       if(role==="atleta")await initAthleteV5(user.id);
       if(role==="administrador")await loadAdmin();
     }
@@ -205,7 +205,7 @@ async function v6LoadAccess(){
  $('v6ConsentCode').classList.toggle('hidden',d.consentimento);
  $('v6JoinForm').classList.toggle('hidden',!d.consentimento);
  $('athleteDaily').classList.toggle('hidden',!d.consentimento);
- if(d.consentimento){await refreshMyTasks();await v6LoadToday();}
+ if(d.consentimento){await refreshMyTasks();await v6LoadToday();await v7LoadDay();}
  }catch(e){$('v6AccessStatus').textContent=e.message;}
 }
 $('v6ConsentCode').onclick=async()=>{try{const d=await request('/api/v6/codigo-responsavel',{method:'POST'});
@@ -227,3 +227,47 @@ async function v6LoadToday(){try{const d=await request('/api/v6/meu-dia');$('v6T
 $('v6TodayRefresh').onclick=async()=>{await v6LoadAccess();};
 
 $('v6AccessRefresh').onclick=v6LoadAccess;
+
+
+// V7 — módulos independentes para atleta e treinador. O servidor valida o perfil.
+async function v7LoadDay(){
+ if(role!=='atleta')return;
+ try{
+  const d=await request('/api/v7/meu-dia');
+  const h=d.habitos||{};
+  for(const [id,key] of [['v7Cafe','cafe'],['v7Almoco','almoco'],['v7Jantar','jantar'],['v7Agua','agua'],['v7Descanso','descanso']])$(id).checked=Boolean(h[key]);
+  $('v7Obs').value=h.observacao||'';
+  $('v7Tips').replaceChildren();
+  for(const tip of d.orientacoes){const item=document.createElement('div');item.className='athlete-item';item.textContent=tip;$('v7Tips').append(item);}
+  $('v7Activities').replaceChildren();
+  if(!d.tarefas.length)$('v7Activities').textContent='Nenhuma atividade prescrita para hoje. Não acrescente exercícios por conta própria.';
+  for(const t of d.tarefas){const item=document.createElement('div');item.className='athlete-item';const title=document.createElement('strong');title.textContent=t.titulo;const desc=document.createElement('p');desc.textContent=t.descricao;const b=document.createElement('button');b.textContent=t.concluida?'Concluída ✓':'Marcar concluída';b.disabled=t.concluida;b.onclick=async()=>{try{await request('/api/v5/minhas-tarefas/'+t.id,{method:'PUT',body:JSON.stringify({concluida:true})});await v7LoadDay();await v6LoadToday();}catch(e){$('v7HabitsStatus').textContent=e.message;}};item.append(title,desc,b);$('v7Activities').append(item);}
+ }catch(e){$('v7HabitsStatus').textContent=e.message;}
+}
+$('v7HabitsForm').onsubmit=async e=>{
+ e.preventDefault();
+ try{
+  const payload={dia:new Date().toLocaleDateString('en-CA'),cafe:$('v7Cafe').checked,almoco:$('v7Almoco').checked,jantar:$('v7Jantar').checked,agua:$('v7Agua').checked,descanso:$('v7Descanso').checked,observacao:$('v7Obs').value.trim()||null};
+  await request('/api/v7/meus-habitos',{method:'PUT',body:JSON.stringify(payload)});
+  $('v7HabitsStatus').textContent='Hábitos registrados para hoje.';
+ }catch(err){$('v7HabitsStatus').textContent=err.message;}
+};
+async function v7InitCoach(){
+ if(role!=='treinador')return;
+ try{const catalog=await request('/api/v7/biblioteca');$('v7Exercise').replaceChildren(new Option('Escolha um exercício',''));for(const x of catalog)$('v7Exercise').add(new Option(x.titulo,x.codigo));window.v7Catalog=catalog;}
+ catch(e){$('v7CoachStatus').textContent=e.message;}
+}
+$('v7ApplyExercise').onclick=()=>{
+ const x=(window.v7Catalog||[]).find(item=>item.codigo===$('v7Exercise').value);
+ if(!x){$('v7CoachStatus').textContent='Selecione um modelo.';return;}
+ $('taskTitle').value=x.titulo;$('taskDescription').value=x.descricao;
+ $('taskTitle').scrollIntoView({behavior:'smooth',block:'center'});
+};
+$('v7CoachRefresh').onclick=async()=>{
+ const id=Number($('taskAthlete').value);$('v7CoachHabits').replaceChildren();
+ if(!id){$('v7CoachStatus').textContent='Selecione um atleta da sua equipe.';return;}
+ try{const rows=await request('/api/v7/atletas/'+id+'/semana');if(!rows.length)$('v7CoachHabits').textContent='Sem registros nesta semana.';
+  for(const h of rows){const div=document.createElement('div');div.className='athlete-item';div.textContent=h.dia+' · Refeições: '+[h.cafe,h.almoco,h.jantar].filter(Boolean).length+'/3 · Água: '+(h.agua?'sim':'não registrado')+' · Descanso: '+(h.descanso?'sim':'não registrado');$('v7CoachHabits').append(div);}
+  $('v7CoachStatus').textContent='Registros atualizados.';
+ }catch(e){$('v7CoachStatus').textContent=e.message;}
+};
