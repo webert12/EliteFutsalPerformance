@@ -61,7 +61,7 @@ $("form").onsubmit=async event=>{
       $("panelLabel").textContent=(role||"USUÁRIO").toUpperCase();
       $("publicHero").classList.add("hidden");$("publicCards").classList.add("hidden");
       $("adminTools").classList.add("hidden");$("staffTools").classList.add("hidden");
-      $("v4Tools").classList.add("hidden");$("trainerRoutine").classList.add("hidden");$("athleteTools").classList.add("hidden");
+      $("v8Navigation").classList.add("hidden");$("v8Overview").classList.add("hidden");$("v4Tools").classList.add("hidden");$("trainerRoutine").classList.add("hidden");$("athleteTools").classList.add("hidden");
       $("adminTools").classList.toggle("hidden",role!=="administrador");
       // A listagem geral não aparece no painel do treinador; use somente as equipes vinculadas.
       $("roleHelp").textContent=descriptions[role]||"Sua conta está ativa.";
@@ -69,6 +69,7 @@ $("form").onsubmit=async event=>{
       $("password").value="";
       $("profile").scrollIntoView({behavior:"smooth"});
 
+      v8Setup(role);
       if(staff){await initV4();$("trainerRoutine").classList.remove("hidden");await v7InitCoach();}
       if(role==="atleta")await initAthleteV5(user.id);
       if(role==="administrador")await loadAdmin();
@@ -271,3 +272,75 @@ $('v7CoachRefresh').onclick=async()=>{
   $('v7CoachStatus').textContent='Registros atualizados.';
  }catch(e){$('v7CoachStatus').textContent=e.message;}
 };
+
+
+// V8: painel visual, sem conceder novas permissões. O servidor continua sendo a autoridade.
+const v8Tabs={
+  administrador:[['inicio','🏠 Início'],['admin','👥 Treinadores']],
+  treinador:[['inicio','🏠 Início'],['equipes','👥 Equipes e treinos'],['atividades','📋 Atividades']],
+  atleta:[['inicio','🏠 Meu Dia'],['rotina','🌿 Rotina e hábitos'],['perfil','🛡️ Meu cadastro']]
+};
+function v8Setup(tipo){
+  const nav=$('v8Navigation');nav.replaceChildren();
+  if(!v8Tabs[tipo])return;
+  nav.classList.remove('hidden');$('v8Overview').classList.remove('hidden');
+  for(const [id,label] of v8Tabs[tipo]){
+    const b=document.createElement('button');b.type='button';b.textContent=label;
+    b.dataset.tab=id;b.onclick=()=>v8Show(tipo,id);nav.append(b);
+  }
+  v8Show(tipo,'inicio');
+}
+function v8Card(icon,title,description,target){
+  const item=document.createElement('article');item.className='v8-tile';
+  const emoji=document.createElement('div');emoji.className='v8-icon';emoji.textContent=icon;
+  const h=document.createElement('strong');h.textContent=title;
+  const p=document.createElement('p');p.textContent=description;
+  item.append(emoji,h,p);
+  if(target){const b=document.createElement('button');b.type='button';b.textContent='Abrir';b.onclick=()=>v8Show(role,target);item.append(b);}
+  return item;
+}
+function v8Show(tipo,tab){
+  if(role!==tipo)return;
+  const overview=$('v8Overview');overview.replaceChildren();
+  const nav=$('v8Navigation');for(const b of nav.querySelectorAll('button'))b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');
+  const sections=['adminTools','v4Tools','trainerRoutine','athleteTools'];
+  sections.forEach(id=>$(id).classList.add('hidden'));
+  const add=(...cards)=>cards.forEach(c=>overview.append(c));
+  if(tipo==='administrador'){
+    if(tab==='admin')$('adminTools').classList.remove('hidden');
+    else add(v8Card('👥','Treinadores','Cadastre e gerencie os acessos dos treinadores.','admin'),v8Card('🛡️','Acesso protegido','A administração não realiza treinos nem registros de atletas.'));
+  }else if(tipo==='treinador'){
+    if(tab==='equipes')$('v4Tools').classList.remove('hidden');
+    else if(tab==='atividades')$('trainerRoutine').classList.remove('hidden');
+    else add(v8Card('👥','Minhas equipes','Convites, presenças, calendário e treinos.','equipes'),v8Card('🏃','Exercícios e tarefas','Planeje atividades técnicas e acompanhe os atletas.','atividades'),v8Card('📈','Acompanhamento','Consulte os registros dos atletas vinculados na área de atividades.','atividades'));
+  }else if(tipo==='atleta'){
+    if(tab==='rotina'){$('athleteTools').classList.remove('hidden');$('v6Access').classList.add('hidden');}
+    else if(tab==='perfil'){$('athleteTools').classList.remove('hidden');$('v6Access').classList.remove('hidden');$('athleteDaily').classList.add('hidden');}
+    else {
+      $('v6Access').classList.remove('hidden');
+      add(v8Card('🏃','Exercícios do dia','Veja e conclua as tarefas enviadas pelo treinador.','rotina'),v8Card('🥗','Alimentação','Registre refeições; orientações educativas, sem dieta prescrita.','rotina'),v8Card('💧','Hidratação','Registre seus hábitos e consumo de água.','rotina'),v8Card('🌙','Sono e recuperação','Registre o sono e o descanso diário.','rotina'),v8Card('💚','Bem-estar','Informe como se sente e comunique dor ao responsável.','rotina'),v8Card('🛡️','Minha equipe','Autorização do responsável e solicitação de entrada.','perfil'));
+      v8LoadProgress();
+    }
+    if(tab!=='perfil' && $('v6AccessStatus').textContent) { /* a rotina mantém as regras de autorização do V6 */ }
+    if(tab==='rotina')$('athleteDaily').classList.remove('hidden');
+  }
+  overview.classList.toggle('hidden',tab!=='inicio');
+  if(tab!=='inicio')setTimeout(()=>nav.scrollIntoView({behavior:'smooth',block:'start'}),0);
+}
+async function v8LoadProgress(){
+  if(role!=='atleta'||!token)return;
+  try{
+    const data=await request('/api/v7/meu-dia');
+    if(role!=='atleta'||!$('v8Overview').children.length)return;
+    const total=(data.tarefas||[]).length;
+    const done=(data.tarefas||[]).filter(x=>x.concluida).length;
+    const h=data.habitos||{};const habits=['cafe','almoco','jantar','agua','descanso'];
+    const doneHabits=habits.filter(x=>h[x]).length;
+    const progress=document.createElement('article');progress.className='v8-tile v8-heading';
+    const heading=document.createElement('strong');heading.textContent='📅 Resumo de hoje';
+    const info=document.createElement('p');info.textContent=`${done} de ${total} atividades do treinador concluídas · ${doneHabits} de 5 hábitos registrados`;
+    const bar=document.createElement('div');bar.className='v8-progress';
+    const fill=document.createElement('span');fill.style.width=((done+doneHabits)/(total+5)*100)+'%';bar.append(fill);
+    progress.append(heading,info,bar);$('v8Overview').prepend(progress);
+  }catch(_){/* Sem ficha ou autorização: não revelar detalhes privados. */}
+}
