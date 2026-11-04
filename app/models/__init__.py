@@ -11,3 +11,5 @@ from .habitos import HabitosDia
 from .performance_v9 import CheckinV9, AvaliacaoV9
 
 from .planejamento_v10 import EventoV10, DistribuicaoV10
+
+from .diario_v13 import DiarioV13
