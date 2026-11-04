@@ -146,7 +146,7 @@ async function v4LoadTeam(){
    const all=await request('/api/atletas');const linked=new Set(athletes.map(a=>a.id));$('v4AthleteSelect').replaceChildren(new Option('Selecione',''));all.filter(a=>!linked.has(a.id)).forEach(a=>$('v4AthleteSelect').add(new Option('Ficha #'+a.id+' · '+a.posicao,String(a.id))));
   }
   if(role==='treinador'){$('taskAthlete').replaceChildren(new Option('Selecione',''));athletes.forEach(a=>$('taskAthlete').add(new Option(a.nome,String(a.id))));}
-  await v4LoadAttendance();v4Msg(athletes.length+' atleta(s) nesta equipe.');
+  await v6LoadRequests();await v4LoadAttendance();v4Msg(athletes.length+' atleta(s) nesta equipe.');
  }catch(e){v4Msg(e.message);}
 }
 async function v4LoadAttendance(){
@@ -171,7 +171,7 @@ $('v4TrainingForm').onsubmit=async e=>{e.preventDefault();const id=$('v4TeamSele
 // V5: rotina individual, com autorização de acesso no servidor.
 async function initAthleteV5(uid){
  $('athleteTools').classList.remove('hidden');$('dailyDate').value=new Date().toLocaleDateString('en-CA');
- try{await request('/api/atletas/me');$('selfProfileForm').classList.add('hidden');$('athleteDaily').classList.remove('hidden');await refreshMyTasks();}
+ try{await request('/api/atletas/me');$('selfProfileForm').classList.add('hidden');await v6LoadAccess();}
  catch(e){$('selfProfileForm').classList.remove('hidden');$('athleteDaily').classList.add('hidden');$('athleteDailyMessage').textContent=e.message;}
 }
 $('selfProfileForm').onsubmit=async e=>{e.preventDefault();try{
@@ -180,7 +180,7 @@ $('selfProfileForm').onsubmit=async e=>{e.preventDefault();try{
 }catch(err){$('athleteDailyMessage').textContent=err.message;}};
 $('dailyForm').onsubmit=async e=>{e.preventDefault();const num=id=>$(id).value===''?null:Number($(id).value);try{
  await request('/api/v5/meu-registro',{method:'POST',body:JSON.stringify({dia:$('dailyDate').value,sono_horas:num('dailySleep'),agua_ml:num('dailyWater'),bem_estar_0_10:num('dailyWell'),esforco_0_10:num('dailyEffort'),duracao_treino_min:num('dailyMinutes'),dor_ou_lesao:$('dailyPain').checked})});
- $('athleteDailyMessage').textContent='Registro salvo. Em caso de dor, avise seu responsável e treinador.';
+ $('athleteDailyMessage').textContent='Registro salvo. Em caso de dor, avise seu responsável e treinador.';await v6LoadToday();
 }catch(err){$('athleteDailyMessage').textContent=err.message;}};
 async function refreshMyTasks(){try{const tasks=await request('/api/v5/minhas-tarefas');$('myTasks').replaceChildren();if(!tasks.length)$('myTasks').textContent='Nenhuma atividade atribuída neste período.';
  for(const t of tasks){const d=document.createElement('div');d.className='athlete-item';const title=document.createElement('strong');title.textContent=t.dia+' · '+t.titulo;const desc=document.createElement('p');desc.textContent=t.descricao;const b=document.createElement('button');b.textContent=t.concluida?'Marcar como pendente':'Concluir';b.onclick=async()=>{try{await request('/api/v5/minhas-tarefas/'+t.id,{method:'PUT',body:JSON.stringify({concluida:!t.concluida})});await refreshMyTasks();}catch(e){$('athleteDailyMessage').textContent=e.message;}};d.append(title,desc,b);$('myTasks').append(d);}
@@ -190,3 +190,33 @@ $('taskForm').onsubmit=async e=>{e.preventDefault();try{const id=Number($('taskA
 async function loadTaskHistory(){const id=$('taskAthlete').value;$('taskHistory').replaceChildren();if(!id)return;try{const [tasks,records]=await Promise.all([request('/api/v5/atletas/'+id+'/tarefas'),request('/api/v5/atletas/'+id+'/registros')]);for(const t of tasks){const d=document.createElement('div');d.className='athlete-item';d.textContent=t.dia+' · '+t.titulo+' — '+(t.concluida?'Concluída':'Pendente');$('taskHistory').append(d);}for(const r of records.slice(0,7)){const d=document.createElement('div');d.className='athlete-item';d.textContent=r.dia+' · Sono: '+(r.sono_horas??'—')+'h · Bem-estar: '+(r.bem_estar_0_10??'—')+' · Dor: '+(r.dor_ou_lesao?'Sim':'Não');$('taskHistory').append(d);}}catch(e){$('taskMessage').textContent=e.message;}}
 $('taskAthlete').onchange=loadTaskHistory;
 $('taskDate').value=new Date().toLocaleDateString('en-CA');
+
+// V6 — convites, declaração do responsável e Meu Dia
+async function v6LoadAccess(){
+ try{const d=await request('/api/v6/meu-acesso');
+ $('v6AccessStatus').textContent=d.consentimento?'Autorização registrada. '+d.solicitacoes.map(x=>'Equipe #'+x.equipe_id+': '+x.status).join(' · '):'Aguardando autorização do responsável. A rotina permanece bloqueada.';
+ $('v6ConsentCode').classList.toggle('hidden',d.consentimento);
+ $('v6JoinForm').classList.toggle('hidden',!d.consentimento);
+ $('athleteDaily').classList.toggle('hidden',!d.consentimento);
+ if(d.consentimento){await refreshMyTasks();await v6LoadToday();}
+ }catch(e){$('v6AccessStatus').textContent=e.message;}
+}
+$('v6ConsentCode').onclick=async()=>{try{const d=await request('/api/v6/codigo-responsavel',{method:'POST'});
+ const link=location.origin+'/responsavel?codigo='+encodeURIComponent(d.codigo);
+ $('v6ConsentResult').replaceChildren();const p=document.createElement('p');p.textContent='Entregue este endereço diretamente ao responsável (válido por 48 horas). Não compartilhe em grupos:';
+ const a=document.createElement('a');a.href=link;a.textContent=link;a.target='_blank';a.rel='noopener noreferrer';$('v6ConsentResult').append(p,a);
+ }catch(e){$('v6ConsentResult').textContent=e.message;}};
+$('v6JoinForm').onsubmit=async e=>{e.preventDefault();try{await request('/api/v6/solicitar-equipe',{method:'POST',body:JSON.stringify({codigo:$('v6JoinCode').value.trim()})});$('v6JoinCode').value='';$('v6JoinResult').textContent='Solicitação enviada. Aguarde aprovação do treinador.';await v6LoadAccess();}catch(err){$('v6JoinResult').textContent=err.message;}};
+$('v6Invite').onclick=async()=>{const eid=$('v4TeamSelect').value;if(!eid){v4Msg('Selecione uma equipe.');return;}try{const d=await request('/api/v6/equipes/'+eid+'/convites',{method:'POST'});$('v6InviteResult').textContent='Convite de uso único (3 dias): '+d.codigo+' — compartilhe individualmente com o atleta.';}catch(e){v4Msg(e.message);}};
+async function v6LoadRequests(){const eid=$('v4TeamSelect').value;$('v6Requests').replaceChildren();if(!eid)return;
+ try{const rows=await request('/api/v6/equipes/'+eid+'/solicitacoes');if(!rows.length)$('v6Requests').textContent='Nenhuma solicitação pendente.';
+ for(const r of rows){const div=document.createElement('div');div.className='athlete-item';const t=document.createElement('p');t.textContent=r.nome+' · Autorização registrada: '+(r.consentimento?'sim':'não');const btn=document.createElement('button');btn.textContent='Aprovar';btn.disabled=!r.consentimento;btn.onclick=async()=>{try{await request('/api/v6/solicitacoes/'+r.id+'/aprovar',{method:'POST'});await v4LoadTeam();}catch(e){v4Msg(e.message);}};const no=document.createElement('button');no.textContent='Recusar';no.className='outline';no.onclick=async()=>{try{await request('/api/v6/solicitacoes/'+r.id+'/recusar',{method:'POST'});await v6LoadRequests();}catch(e){v4Msg(e.message);}};div.append(t,btn,no);$('v6Requests').append(div);}
+ }catch(e){v4Msg(e.message);}}
+$('v6RefreshRequests').onclick=v6LoadRequests;
+async function v6LoadToday(){try{const d=await request('/api/v6/meu-dia');$('v6TodayStatus').textContent=d.data+' · Registro diário: '+(d.registro_feito?'feito':'pendente')+' · '+d.tarefas.filter(x=>x.concluida).length+'/'+d.tarefas.length+' tarefas concluídas';$('v6TodayTasks').replaceChildren();
+ for(const t of d.tarefas){const div=document.createElement('div');div.className='athlete-item';const title=document.createElement('strong');title.textContent=t.titulo;const desc=document.createElement('p');desc.textContent=t.descricao;const button=document.createElement('button');button.textContent=t.concluida?'Concluída ✓':'Concluir atividade';button.disabled=t.concluida;button.onclick=async()=>{try{await request('/api/v5/minhas-tarefas/'+t.id,{method:'PUT',body:JSON.stringify({concluida:true})});await v6LoadToday();await refreshMyTasks();}catch(e){$('athleteDailyMessage').textContent=e.message;}};div.append(title,desc,button);$('v6TodayTasks').append(div);}
+ if(!d.tarefas.length)$('v6TodayTasks').textContent='Nenhuma tarefa orientada para hoje.';$('v6TodayTips').textContent=d.orientacoes.join(' ');
+ }catch(e){$('v6TodayStatus').textContent=e.message;}}
+$('v6TodayRefresh').onclick=async()=>{await v6LoadAccess();};
+
+$('v6AccessRefresh').onclick=v6LoadAccess;

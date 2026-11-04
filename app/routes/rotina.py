@@ -7,6 +7,7 @@ from app.models.usuario import Usuario
 from app.models.atleta import Atleta, RegistroDiario
 from app.models.treino import Equipe, VinculoEquipe
 from app.models.rotina import Tarefa
+from app.routes.acesso import exigir_consentimento
 from app.schemas.atleta import RegistroCriacao, RegistroPublico
 from app.security.token import usuario_atual
 
@@ -25,6 +26,7 @@ def atleta_proprio(db, usuario):
     if usuario.tipo_usuario != 'atleta': raise HTTPException(403, 'Somente atletas')
     a = db.query(Atleta).filter(Atleta.usuario_id == usuario.id).first()
     if not a: raise HTTPException(404, 'Cadastre sua ficha esportiva primeiro')
+    exigir_consentimento(db,a.id)
     return a
 
 def verificar_treinador(db, usuario, atleta_id):
@@ -32,6 +34,7 @@ def verificar_treinador(db, usuario, atleta_id):
     vinculo = (db.query(VinculoEquipe).join(Equipe, Equipe.id == VinculoEquipe.equipe_id)
         .filter(Equipe.treinador_id == usuario.id, VinculoEquipe.atleta_id == atleta_id).first())
     if not vinculo: raise HTTPException(403, 'Atleta não vinculado a uma de suas equipes')
+    exigir_consentimento(db,atleta_id)
 
 
 def tarefa_json(t):

@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.usuario import Usuario
 from app.models.atleta import Atleta
 from app.models.treino import Equipe, VinculoEquipe, Treino, Presenca
+from app.models.acesso import Consentimento
 from app.security.token import usuario_atual
 
 router = APIRouter(prefix='/api/v4', tags=['Equipes e treinos'])
@@ -60,16 +61,15 @@ def listar_equipes(u:Usuario=Depends(usuario_atual),db:Session=Depends(get_db)):
 def vincular(equipe_id:int,d:VinculoNovo,u:Usuario=Depends(usuario_atual),db:Session=Depends(get_db)):
     if u.tipo_usuario != 'treinador': raise HTTPException(403,'Somente treinadores vinculam atletas')
     obter_equipe(db,equipe_id,u)
-    if not db.get(Atleta,d.atleta_id):raise HTTPException(404,'Atleta não encontrado')
-    v=VinculoEquipe(equipe_id=equipe_id,atleta_id=d.atleta_id);db.add(v)
-    try:db.commit()
-    except IntegrityError:db.rollback();raise HTTPException(409,'Atleta já vinculado à equipe')
-    return {'equipe_id':equipe_id,'atleta_id':d.atleta_id}
+    raise HTTPException(403,'Vínculos diretos desativados na V6. Use convite, autorização e aprovação.')
 
 @router.get('/equipes/{equipe_id}/atletas')
 def atletas_equipe(equipe_id:int,u:Usuario=Depends(usuario_atual),db:Session=Depends(get_db)):
     obter_equipe(db,equipe_id,u)
-    rows=db.query(Atleta,Usuario).join(VinculoEquipe,VinculoEquipe.atleta_id==Atleta.id).join(Usuario,Usuario.id==Atleta.usuario_id).filter(VinculoEquipe.equipe_id==equipe_id).order_by(Usuario.nome).all()
+    rows=(db.query(Atleta,Usuario).join(VinculoEquipe,VinculoEquipe.atleta_id==Atleta.id)
+        .join(Usuario,Usuario.id==Atleta.usuario_id).join(Consentimento,Consentimento.atleta_id==Atleta.id)
+        .filter(VinculoEquipe.equipe_id==equipe_id,Consentimento.aceito_em.is_not(None),Consentimento.revogado_em.is_(None))
+        .order_by(Usuario.nome).all())
     return [{'id':a.id,'nome':p.nome,'posicao':a.posicao} for a,p in rows]
 
 @router.post('/equipes/{equipe_id}/treinos',status_code=201)
@@ -92,6 +92,8 @@ def marcar(treino_id:int,d:PresencaNova,u:Usuario=Depends(usuario_atual),db:Sess
     obter_equipe(db,t.equipe_id,u)
     vinc=db.query(VinculoEquipe).filter_by(equipe_id=t.equipe_id,atleta_id=d.atleta_id).first()
     if not vinc:raise HTTPException(422,'Atleta não pertence à equipe')
+    from app.routes.acesso import exigir_consentimento
+    exigir_consentimento(db,d.atleta_id)
     p=db.query(Presenca).filter_by(treino_id=treino_id,atleta_id=d.atleta_id).first()
     if p:p.situacao=d.situacao
     else:db.add(Presenca(treino_id=treino_id,**d.model_dump()))
@@ -103,4 +105,4 @@ def presencas(treino_id:int,u:Usuario=Depends(usuario_atual),db:Session=Depends(
     t=db.get(Treino,treino_id)
     if not t:raise HTTPException(404,'Treino não encontrado')
     obter_equipe(db,t.equipe_id,u)
-    return [{'atleta_id':p.atleta_id,'situacao':p.situacao} for p in db.query(Presenca).filter_by(treino_id=treino_id).all()]
+    return [{'atleta_id':p.atleta_id,'situacao':p.situacao} for p in db.query(Presenca).join(Consentimento,Consentimento.atleta_id==Presenca.atleta_id).filter(Presenca.treino_id==treino_id,Consentimento.aceito_em.is_not(None),Consentimento.revogado_em.is_(None)).all()]

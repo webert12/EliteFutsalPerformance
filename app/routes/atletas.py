@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.models.usuario import Usuario
 from app.models.atleta import Atleta, RegistroDiario
+from app.routes.acesso import exigir_consentimento
+from app.models.acesso import Consentimento
 from app.models.treino import Equipe, VinculoEquipe
 from app.schemas.atleta import AtletaCriacao, AtletaPublico, RegistroCriacao, RegistroPublico
 from app.security.token import usuario_atual, exigir_equipe
@@ -45,7 +47,8 @@ def listar(equipe: Usuario = Depends(exigir_equipe), db: Session = Depends(get_d
     if equipe.tipo_usuario == 'treinador':
         return (db.query(Atleta).join(VinculoEquipe, VinculoEquipe.atleta_id == Atleta.id)
                 .join(Equipe, Equipe.id == VinculoEquipe.equipe_id)
-                .filter(Equipe.treinador_id == equipe.id).distinct().order_by(Atleta.id).all())
+                .join(Consentimento,Consentimento.atleta_id==Atleta.id)
+                .filter(Equipe.treinador_id == equipe.id,Consentimento.aceito_em.is_not(None),Consentimento.revogado_em.is_(None)).distinct().order_by(Atleta.id).all())
     raise HTTPException(403, 'Acesso restrito aos treinadores')
 
 @router.get('/{atleta_id}', response_model=AtletaPublico)
@@ -62,6 +65,7 @@ def registrar(atleta_id: int, dados: RegistroCriacao, usuario: Usuario = Depends
     if not atleta:
         raise HTTPException(status_code=404, detail='Atleta não encontrado')
     autorizar(atleta, usuario)
+    exigir_consentimento(db,atleta.id)
     if dados.dia > date.today():
         raise HTTPException(status_code=422, detail='Data futura não permitida')
     registro = RegistroDiario(atleta_id=atleta_id, **dados.model_dump())
@@ -76,4 +80,5 @@ def registros(atleta_id: int, usuario: Usuario = Depends(usuario_atual), db: Ses
     if not atleta:
         raise HTTPException(status_code=404, detail='Atleta não encontrado')
     autorizar(atleta, usuario)
+    exigir_consentimento(db,atleta.id)
     return db.query(RegistroDiario).filter(RegistroDiario.atleta_id == atleta_id).order_by(RegistroDiario.dia.desc(), RegistroDiario.id.desc()).limit(60).all()

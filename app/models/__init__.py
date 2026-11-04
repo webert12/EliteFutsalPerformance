@@ -4,3 +4,4 @@ from app.models.atleta import Atleta, RegistroDiario
 from app.models.treino import Equipe, VinculoEquipe, Treino, Presenca
 
 from .rotina import Tarefa
+from .acesso import Consentimento, ConviteEquipe, SolicitacaoEquipe
