@@ -277,8 +277,8 @@ $('v7CoachRefresh').onclick=async()=>{
 // V8: painel visual, sem conceder novas permissões. O servidor continua sendo a autoridade.
 const v8Tabs={
   administrador:[['inicio','🏠 Início'],['admin','👥 Treinadores']],
-  treinador:[['inicio','🏠 Início'],['equipes','👥 Equipes e treinos'],['atividades','📋 Atividades'],['performance','📈 Performance']],
-  atleta:[['inicio','🏠 Meu Dia'],['rotina','🌿 Rotina e hábitos'],['performance','💚 Performance'],['perfil','🛡️ Meu cadastro']]
+  treinador:[['inicio','🏠 Início'],['equipes','👥 Equipes e treinos'],['atividades','📋 Atividades'],['performance','📈 Performance'],['planejamento','📅 Planejamento']],
+  atleta:[['inicio','🏠 Meu Dia'],['rotina','🌿 Rotina e hábitos'],['performance','💚 Performance'],['perfil','🛡️ Meu cadastro'],['meudia','🌞 Meu Dia V10']]
 };
 function v8Setup(tipo){
   const nav=$('v8Navigation');nav.replaceChildren();
@@ -303,7 +303,7 @@ function v8Show(tipo,tab){
   if(role!==tipo)return;
   const overview=$('v8Overview');overview.replaceChildren();
   const nav=$('v8Navigation');for(const b of nav.querySelectorAll('button'))b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');
-  const sections=['adminTools','v4Tools','trainerRoutine','athleteTools','v9Athlete','v9Coach'];
+  const sections=['adminTools','v4Tools','trainerRoutine','athleteTools','v9Athlete','v9Coach','v10Athlete','v10Coach'];
   sections.forEach(id=>$(id).classList.add('hidden'));
   const add=(...cards)=>cards.forEach(c=>overview.append(c));
   if(tipo==='administrador'){
@@ -313,14 +313,16 @@ function v8Show(tipo,tab){
     if(tab==='equipes')$('v4Tools').classList.remove('hidden');
     else if(tab==='atividades')$('trainerRoutine').classList.remove('hidden');
     else if(tab==='performance'){$('v9Coach').classList.remove('hidden');v9CoachLoad();}
-    else add(v8Card('👥','Minhas equipes','Convites, presenças, calendário e treinos.','equipes'),v8Card('🏃','Exercícios e tarefas','Planeje atividades técnicas e acompanhe os atletas.','atividades'),v8Card('📈','Performance','Check-ins, biblioteca técnica, avaliações e relatório semanal.','performance'));
+    else if(tab==='planejamento'){$('v10Coach').classList.remove('hidden');v10LoadCoach();}
+    else add(v8Card('👥','Minhas equipes','Convites, presenças, calendário e treinos.','equipes'),v8Card('🏃','Exercícios e tarefas','Planeje atividades técnicas e acompanhe os atletas.','atividades'),v8Card('📈','Performance','Check-ins, biblioteca técnica, avaliações e relatório semanal.','performance'),v8Card('📅','Planejamento semanal','Envie orientações para equipe inteira ou atleta individual.','planejamento'));
   }else if(tipo==='atleta'){
     if(tab==='rotina'){$('athleteTools').classList.remove('hidden');$('v6Access').classList.add('hidden');}
     else if(tab==='performance'){$('v9Athlete').classList.remove('hidden');v9AthleteLoad();}
+    else if(tab==='meudia'){$('v10Athlete').classList.remove('hidden');v10LoadDay();}
     else if(tab==='perfil'){$('athleteTools').classList.remove('hidden');$('v6Access').classList.remove('hidden');$('athleteDaily').classList.add('hidden');}
     else {
       $('v6Access').classList.remove('hidden');
-      add(v8Card('🏃','Exercícios do dia','Veja e conclua as tarefas enviadas pelo treinador.','rotina'),v8Card('🥗','Alimentação','Registre refeições; orientações educativas, sem dieta prescrita.','rotina'),v8Card('💧','Hidratação','Registre seus hábitos e consumo de água.','rotina'),v8Card('🌙','Sono e recuperação','Registre o sono e o descanso diário.','rotina'),v8Card('💚','Bem-estar e evolução','Check-in e avaliações individuais.','performance'),v8Card('🛡️','Minha equipe','Autorização do responsável e solicitação de entrada.','perfil'));
+      add(v8Card('🌞','Meu Dia V10','Veja orientações e tarefas organizadas para hoje.','meudia'),v8Card('🏃','Exercícios do dia','Veja e conclua as tarefas enviadas pelo treinador.','rotina'),v8Card('🥗','Alimentação','Registre refeições; orientações educativas, sem dieta prescrita.','rotina'),v8Card('💧','Hidratação','Registre seus hábitos e consumo de água.','rotina'),v8Card('🌙','Sono e recuperação','Registre o sono e o descanso diário.','rotina'),v8Card('💚','Bem-estar e evolução','Check-in e avaliações individuais.','performance'),v8Card('🛡️','Minha equipe','Autorização do responsável e solicitação de entrada.','perfil'));
       v8LoadProgress();
     }
     if(tab!=='perfil' && $('v6AccessStatus').textContent) { /* a rotina mantém as regras de autorização do V6 */ }
@@ -376,3 +378,15 @@ async function v9ReportLoad(){
 }
 $('v9RefreshReport').onclick=v9ReportLoad;
 $('v9AssessmentForm').onsubmit=async e=>{e.preventDefault();const atleta_id=Number($('taskAthlete').value);if(!atleta_id){$('v9CoachStatus').textContent='Selecione um atleta na aba Atividades.';return;}try{await request('/api/v9/avaliacoes',{method:'POST',body:JSON.stringify({atleta_id,dia:$('v9AssessmentDate').value,fundamento:$('v9Skill').value,nota:Number($('v9Score').value),observacao:$('v9AssessmentNote').value.trim()||null})});$('v9CoachStatus').textContent='Avaliação registrada.';await v9ReportLoad();}catch(e){$('v9CoachStatus').textContent=e.message;}};
+
+// V10: interface por perfil; o backend verifica vínculos e autorização.
+function v10Item(target,title,desc){const d=document.createElement('article');d.className='v10-card';const h=document.createElement('strong');h.textContent=title;const p=document.createElement('p');p.textContent=desc;d.append(h,p);$(target).append(d);}
+async function v10LoadDay(){if(role!=='atleta')return;$('v10DayCards').replaceChildren();try{const d=await request('/api/v10/meu-dia');$('v10AthleteStatus').textContent='Hoje: '+d.dia+' · Check-in: '+(d.checkin_preenchido?'registrado':'pendente')+' · Hábitos: '+(d.habitos_preenchidos?'registrados':'pendentes');for(const x of d.sugestoes)v10Item('v10DayCards',x.titulo,x.texto);for(const t of d.tarefas)v10Item('v10DayCards',(t.concluida?'✅ ':'📋 ')+t.titulo,t.descricao);if(!d.tarefas.length)v10Item('v10DayCards','Sem tarefas extras','O treinador ainda não programou atividades para hoje. Não acrescente treinos por conta própria.');}catch(e){$('v10AthleteStatus').textContent=e.message;}}
+$('v10RefreshDay').onclick=v10LoadDay;
+async function v10LoadCoach(){if(role!=='treinador')return;try{const es=await request('/api/v4/equipes');const el=$('v10Team'),selected=el.value;el.replaceChildren(new Option('Selecione a equipe',''));es.forEach(e=>el.add(new Option(e.nome+' · '+e.categoria,e.id)));if(es.some(e=>String(e.id)===selected))el.value=selected;else if(es.length)el.value=String(es[0].id);await v10TeamChanged();}catch(e){$('v10CoachStatus').textContent=e.message;}}
+async function v10TeamChanged(){const id=$('v10Team').value;const t=$('v10Target');t.replaceChildren(new Option('Equipe inteira',''));$('v10Agenda').replaceChildren();if(!id)return;try{const athletes=await request('/api/v4/equipes/'+id+'/atletas');athletes.forEach(a=>t.add(new Option(a.nome,a.id)));await v10Agenda();}catch(e){$('v10CoachStatus').textContent=e.message;}}
+$('v10Team').onchange=v10TeamChanged;
+async function v10Agenda(){const id=$('v10Team').value;if(!id)return;$('v10Agenda').replaceChildren();try{const [rows,r]=await Promise.all([request('/api/v10/equipes/'+id+'/agenda'),request('/api/v10/equipes/'+id+'/resumo')]);v10Item('v10Agenda','Resumo de hoje',`${r.checkins_hoje}/${r.atletas_autorizados} check-ins; ${r.checkins_que_pedem_conversa} registros pedem conversa.`);for(const e of rows)v10Item('v10Agenda',e.dia+' · '+e.titulo,e.tipo.toUpperCase()+' — '+e.detalhes);if(!rows.length)v10Item('v10Agenda','Agenda vazia','Cadastre o primeiro planejamento.');}catch(e){$('v10CoachStatus').textContent=e.message;}}
+$('v10RefreshAgenda').onclick=v10Agenda;
+$('v10Date').value=v9Today();
+$('v10PlanForm').onsubmit=async e=>{e.preventDefault();const b=e.submitter;if(b)b.disabled=true;try{const body={equipe_id:Number($('v10Team').value),atleta_id:$('v10Target').value?Number($('v10Target').value):null,dia:$('v10Date').value,tipo:$('v10Type').value,titulo:$('v10Title').value.trim(),detalhes:$('v10Details').value.trim()};const result=await request('/api/v10/planejar',{method:'POST',body:JSON.stringify(body)});$('v10CoachStatus').textContent='Planejamento enviado para '+result.destinatarios+' atleta(s).';await v10Agenda();}catch(err){$('v10CoachStatus').textContent=err.message;}finally{if(b)b.disabled=false;}};

@@ -36,3 +36,6 @@
 /* V9 — desempenho acessível e painéis independentes */
 .v9-module{border:1px solid #317a45;border-radius:16px;padding:16px;margin:18px 0;background:linear-gradient(145deg,#102c20,#071912)}
 .v9-module h3{color:#c4ff9b}.v9-module .athlete-item{overflow-wrap:anywhere}.v9-module label{margin-top:9px;display:block}.v9-module input,.v9-module select{max-width:100%}
+
+/* V10 — cartões responsivos, sem misturar perfis */
+.v10-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;margin:14px 0}.v10-card{border:1px solid #348b48;border-radius:14px;background:linear-gradient(145deg,#0c251c,#07130f);padding:17px;color:#f3fff4;box-shadow:0 4px 18px #0004}.v10-card strong{display:block;color:#b3ff75;font-size:1.03rem;margin-bottom:7px}.v10-card p{line-height:1.55;color:#d6e9db;margin:0}.v10-module{margin:16px 0}.v10-module input,.v10-module select{max-width:100%}
