@@ -13,3 +13,8 @@ from .performance_v9 import CheckinV9, AvaliacaoV9
 from .planejamento_v10 import EventoV10, DistribuicaoV10
 
 from .diario_v13 import DiarioV13
+from .jogos_v16 import JogoV16, EstatisticaV16
+
+from .jogos_v162 import EscalacaoV162
+
+from .comunicados_v17 import ComunicadoV17, CienciaV17
