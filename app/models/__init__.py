@@ -18,3 +18,5 @@ from .jogos_v16 import JogoV16, EstatisticaV16
 from .jogos_v162 import EscalacaoV162
 
 from .comunicados_v17 import ComunicadoV17, CienciaV17
+
+from .acompanhamento_v18 import PlanoDiaV18, ConversaV18
