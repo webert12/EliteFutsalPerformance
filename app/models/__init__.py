@@ -20,3 +20,5 @@ from .jogos_v162 import EscalacaoV162
 from .comunicados_v17 import ComunicadoV17, CienciaV17
 
 from .acompanhamento_v18 import PlanoDiaV18, ConversaV18
+
+from .perfil_v20 import PerfilV20, SensacaoV20
