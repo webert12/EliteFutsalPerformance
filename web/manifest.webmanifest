@@ -1,0 +1,20 @@
+{
+  "name": "REAL ITA — Academia e Gestão de Atletas",
+  "short_name": "REAL ITA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07150f",
+  "theme_color": "#07150f",
+  "icons": [
+    {
+      "src": "/static/assets/real-ita-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/assets/real-ita-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
